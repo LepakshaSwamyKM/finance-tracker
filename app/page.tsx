@@ -1,103 +1,136 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import TransactionForm from "../components/TransactionForm";
+import TransactionList from "../components/TransactionList";
+import ExpensesChart from "../components/ExpensesChart";
+import { motion, AnimatePresence } from "framer-motion";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [editTxn, setEditTxn] = useState<any | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const showForm = searchParams.get("showForm") === "true";
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    try {
+      const res = await fetch("/api/transactions");
+      if (!res.ok) throw new Error("Failed to fetch transactions");
+      const data = await res.json();
+      setTransactions(data);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Could not load transactions. Please try again later.");
+    }
+  };
+
+  const handleSubmit = async (txn: any) => {
+    if (!txn.amount || !txn.date || !txn.description) {
+      toast.error("All fields are required.");
+      return;
+    }
+    try {
+      if (editTxn) {
+        const res = await fetch(`/api/transactions/${editTxn._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(txn),
+        });
+        if (!res.ok) throw new Error("Update failed");
+        toast.success("Transaction updated successfully!");
+        setEditTxn(null);
+      } else {
+        const res = await fetch("/api/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(txn),
+        });
+        if (!res.ok) throw new Error("Creation failed");
+        toast.success("Transaction added successfully!");
+      }
+      fetchTransactions();
+      router.replace("/");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Something went wrong. Please try again.");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      toast.success("Transaction deleted.");
+      fetchTransactions();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Could not delete transaction.");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <ToastContainer position="top-center" autoClose={3000} />
+
+      <section className="bg-gradient-to-r from-blue-100 to-indigo-100 p-8 rounded-lg shadow text-center">
+        <h2 className="text-3xl font-bold mb-2">Track Your Finances</h2>
+        <p className="text-lg text-gray-700">
+          A simple and beautiful way to manage your personal expenses.
+        </p>
+      </section>
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.section
+            id="add"
+            key="form"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <TransactionForm onSubmit={handleSubmit} initialData={editTxn} />
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      <ExpensesChart transactions={transactions} />
+
+      <TransactionList
+        transactions={transactions}
+        onDelete={handleDelete}
+        onEdit={(txn) => {
+          setEditTxn(txn);
+          router.push("/?showForm=true");
+        }}
+        renderActions={(txn) => (
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setEditTxn(txn);
+                router.push("/?showForm=true");
+              }}
+              className="px-3 py-1 text-sm rounded bg-yellow-500 text-white hover:bg-yellow-600"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => handleDelete(txn._id)}
+              className="px-3 py-1 text-sm rounded bg-red-500 text-white hover:bg-red-600"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      />
     </div>
   );
 }
